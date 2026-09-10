@@ -1,0 +1,12 @@
+/.env
+/vendor/
+/writable/cache/*
+/writable/debugbar/*
+/writable/logs/*
+/writable/session/*
+/writable/uploads/*
+/writable/backups/*
+/build/
+/public/uploads/logo/*
+!/public/uploads/logo/index.html
+*.log
