@@ -18,7 +18,7 @@ class Toko extends BaseController
             'toko'     => $storeModel->first() // Ambil baris pertama dari tabel
         ];
 
-        return view('toko/index', $data);
+        return view('Toko/index', $data);
     }
 
     public function update()
