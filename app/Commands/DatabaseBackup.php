@@ -22,7 +22,7 @@ class DatabaseBackup extends BaseCommand
             CLI::write('Backup berhasil: ' . $filename, 'green');
         } catch (RuntimeException $exception) {
             CLI::error($exception->getMessage());
-            CLI::error('Pastikan mysqldump tersedia dan koneksi database benar.');
+            CLI::error('Pastikan koneksi database aktif dan folder writable/backups dapat ditulis.');
         }
     }
 }

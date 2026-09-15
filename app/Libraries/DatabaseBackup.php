@@ -8,67 +8,54 @@ class DatabaseBackup
 {
     public function create(): string
     {
-        $config = config('Database')->default;
-        $database = (string) ($config['database'] ?? '');
-        if ($database === '') {
-            throw new RuntimeException('Nama database belum dikonfigurasi.');
-        }
-
         $backupDirectory = WRITEPATH . 'backups';
         if (! is_dir($backupDirectory) && ! mkdir($backupDirectory, 0750, true) && ! is_dir($backupDirectory)) {
             throw new RuntimeException('Folder backup tidak dapat dibuat.');
         }
 
-        $binary = getenv('MYSQLDUMP_PATH') ?: 'mysqldump';
-        if ($binary === 'mysqldump' && is_file('C:\\xampp\\mysql\\bin\\mysqldump.exe')) {
-            $binary = 'C:\\xampp\\mysql\\bin\\mysqldump.exe';
-        }
-
         $filename = 'konter-pos-' . date('Y-m-d-His') . '.sql';
         $path = $backupDirectory . DIRECTORY_SEPARATOR . $filename;
-        $arguments = [
-            '--single-transaction',
-            '--routines',
-            '--events',
-            '--triggers',
-            '--host=' . ($config['hostname'] ?? 'localhost'),
-            '--port=' . ($config['port'] ?? 3306),
-            '--user=' . ($config['username'] ?? ''),
-        ];
-        if (($config['password'] ?? '') !== '') {
-            $arguments[] = '--password=' . $config['password'];
-        }
-        $arguments[] = $database;
-
-        $command = self::quote($binary);
-        foreach ($arguments as $argument) {
-            $command .= ' ' . self::quote($argument);
+        $db = \Config\Database::connect();
+        $handle = fopen($path, 'wb');
+        if ($handle === false) {
+            throw new RuntimeException('File backup tidak dapat dibuat.');
         }
 
-        $descriptors = [
-            0 => ['pipe', 'r'],
-            1 => ['file', $path, 'w'],
-            2 => ['pipe', 'w'],
-        ];
-        $process = proc_open($command, $descriptors, $pipes);
-        if (! is_resource($process)) {
-            throw new RuntimeException('mysqldump tidak dapat dijalankan.');
-        }
-        fclose($pipes[0]);
-        $error = stream_get_contents($pipes[2]);
-        fclose($pipes[2]);
-        $exitCode = proc_close($process);
+        try {
+            fwrite($handle, "-- Konter POS database backup\n-- Created: " . date('Y-m-d H:i:s') . "\n\nSET FOREIGN_KEY_CHECKS=0;\n\n");
+            $tables = $db->query('SHOW FULL TABLES WHERE Table_type = \'BASE TABLE\'')->getResultArray();
 
-        if ($exitCode !== 0 || ! is_file($path) || filesize($path) === 0) {
+            foreach ($tables as $tableRow) {
+                $table = (string) array_values($tableRow)[0];
+                $quotedTable = '`' . str_replace('`', '``', $table) . '`';
+                $create = $db->query('SHOW CREATE TABLE ' . $quotedTable)->getRowArray();
+                $createSql = (string) ($create['Create Table'] ?? array_values($create)[1] ?? '');
+
+                fwrite($handle, "DROP TABLE IF EXISTS {$quotedTable};\n{$createSql};\n\n");
+                $rows = $db->table($table)->get()->getResultArray();
+                foreach ($rows as $row) {
+                    $columns = array_map(static fn (string $column): string => '`' . str_replace('`', '``', $column) . '`', array_keys($row));
+                    $values = array_map(static function ($value) use ($db): string {
+                        return $value === null ? 'NULL' : $db->escape((string) $value);
+                    }, array_values($row));
+                    fwrite($handle, 'INSERT INTO ' . $quotedTable . ' (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $values) . ");\n");
+                }
+                fwrite($handle, "\n");
+            }
+
+            fwrite($handle, "SET FOREIGN_KEY_CHECKS=1;\n");
+        } catch (\Throwable $exception) {
+            fclose($handle);
             @unlink($path);
-            throw new RuntimeException(trim($error) ?: 'Backup database gagal dibuat.');
+            throw new RuntimeException('Backup database gagal: ' . $exception->getMessage(), 0, $exception);
+        }
+
+        fclose($handle);
+        if (! is_file($path) || filesize($path) === 0) {
+            @unlink($path);
+            throw new RuntimeException('Backup database menghasilkan file kosong.');
         }
 
         return $filename;
-    }
-
-    private static function quote(string $value): string
-    {
-        return '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $value) . '"';
     }
 }

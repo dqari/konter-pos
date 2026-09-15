@@ -48,7 +48,7 @@ saat sudah di akun admin bisa membuat akun baru dengan role kasir atau manager T
 - **Retur Transaksi**: Owner/Manager dapat membuka menu Retur Transaksi. IMEI dikembalikan ke status Tersedia, aksesori dikembalikan sebagai batch stok baru, dan transaksi tetap tersimpan sebagai histori.
 - **Stock Opname**: Owner/Manager dapat mencocokkan stok fisik dengan stok sistem. Selisih aksesori disesuaikan otomatis; selisih handphone perlu pemeriksaan IMEI manual.
 - **Audit Aktivitas**: Owner dapat melihat aktivitas checkout, perubahan produk/stok/user, retur, opname, backup, dan perubahan profil toko.
-- **Backup Manual**: Owner dapat membuka menu Backup Data dan mengunduh file SQL dari `writable/backups`.
+- **Backup Manual**: Owner dapat membuka menu Backup Data dan mengunduh file SQL dari `writable/backups`. Backup dibuat langsung melalui koneksi database PHP sehingga tidak membutuhkan `mysqldump` atau `proc_open` pada shared hosting.
 - **Backup Otomatis Harian**: Command yang tersedia adalah `php spark backup:database`. Script siap pakai tersedia di `backup_database_daily.bat`; jadwalkan file ini di Windows Task Scheduler setiap hari. Backup tersimpan di `writable/backups`.
 - **Validasi Harga**: Harga jual dan modal di atas Rp50.000.000 ditolak oleh server dan diberi peringatan pada form.
 
